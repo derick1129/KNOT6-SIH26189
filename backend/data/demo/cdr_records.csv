@@ -1,0 +1,19 @@
+caller,callee,caller_name,callee_name,timestamp,duration_seconds,tower_location
+9876543210,9812345670,Vikram Rathore,Ramesh Kumar,2026-08-10T09:12:00,184,Bhawarkuan Chowk Indore
+9876543210,9812345670,Vikram Rathore,Ramesh Kumar,2026-08-10T11:03:00,45,Bhawarkuan Chowk Indore
+9876543210,9812345670,Vikram Rathore,Ramesh Kumar,2026-08-10T14:47:00,212,Sector 12 Indore
+9876543210,9812345670,Vikram Rathore,Ramesh Kumar,2026-08-11T08:20:00,63,Sector 12 Indore
+9876543210,9812345670,Vikram Rathore,Ramesh Kumar,2026-08-11T19:55:00,301,Bhawarkuan Chowk Indore
+9876543210,9812345670,Vikram Rathore,Ramesh Kumar,2026-08-11T21:10:00,88,Bhawarkuan Chowk Indore
+9876543210,9845123456,Rathore Vikram,Zubair Khan,2026-08-09T07:01:00,8,Chandan Nagar Indore
+9876543210,9845123456,Rathore Vikram,Zubair Khan,2026-08-09T07:04:00,6,Chandan Nagar Indore
+9876543210,9845123456,Rathore Vikram,Zubair Khan,2026-08-09T07:09:00,11,Chandan Nagar Indore
+9876543210,9845123456,Rathore Vikram,Zubair Khan,2026-08-09T18:32:00,9,Chandan Nagar Indore
+9876543210,9823456781,Vikram Rathore,Suresh Yadav,2026-08-08T10:00:00,340,Rau Indore
+9823456781,9834567123,Suresh Yadav,Anita Deshmukh,2026-08-08T12:15:00,150,Rau Indore
+9812345670,9878912345,Ramesh Kumar,Farhan Ali,2026-08-12T20:05:00,275,Dewas Naka Highway
+9812345670,9878912345,Ramesh Kumar,Farhan Ali,2026-08-13T09:40:00,190,Dewas Naka Highway
+9876543210,9856784321,Vikram Rathore,Sanjay Mehta,2026-08-14T16:00:00,120,Sector 12 Indore
+9856784321,9867891234,Sanjay Mehta,Deepak Verma,2026-08-14T18:20:00,95,Palasia Indore
+9867891234,9889123456,Deepak Verma,Om Prakash,2026-08-15T08:10:00,60,Rajwada Indore
+9876543210,9889123456,Vikram Rathore,Om Prakash,2026-08-15T09:00:00,40,Rajwada Indore

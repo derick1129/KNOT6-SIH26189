@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-ink text-slate-100;
+  font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0b1220; }
+::-webkit-scrollbar-thumb { background: #233252; border-radius: 4px; }
+
+.card {
+  @apply bg-panel border border-border rounded-xl p-4 shadow-lg;
+}
+
+.badge {
+  @apply px-2 py-0.5 rounded-full text-xs font-semibold tracking-wide;
+}
