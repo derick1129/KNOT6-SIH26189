@@ -27,6 +27,22 @@ class Settings(BaseSettings):
     neo4j_user: str = "neo4j"
     neo4j_password: str = "password"
 
+    # --- Application database (KNOT6 Phase 1) ---------------------------
+    # Users, investigations, cases, evidence metadata, audit history and
+    # entity-resolution review state live here -- NEVER the graph itself
+    # (that stays in NetworkX/Neo4j via GraphStore). Mirrors the same
+    # zero-infra-default / Docker-overrides-to-real-service pattern already
+    # used for graph_backend above: docker-compose points this at the real
+    # `postgres` service; a bare `uvicorn app.main:app` run defaults to a
+    # local SQLite file so the zero-infra demo story still needs nothing
+    # installed. See docs/KNOT6_ARCHITECTURE.md.
+    database_url: str = "sqlite:///./knot6_dev.db"
+
+    # --- Evidence storage (KNOT6 Phase 1) --------------------------------
+    # Local filesystem for the prototype; see app/services/storage.py for
+    # the abstraction that makes this swappable for object storage later.
+    evidence_storage_dir: str = "./data/evidence"
+
     # --- Auth ----------------------------------------------------------
     jwt_secret: str = "change-me-in-production-please"
     jwt_algorithm: str = "HS256"
@@ -47,6 +63,29 @@ class Settings(BaseSettings):
     # immediately explorable. Set to false for a clean/empty graph
     # (e.g. before ingesting real case data).
     auto_seed_demo: bool = True
+
+    # --- Case Intelligence / AI Copilot (grounded, provider-abstracted) ----
+    # Deliberately optional: the deterministic Case Intelligence summary and
+    # investigation-scoped search (app/services/investigation_intelligence.py,
+    # investigation_search.py) never depend on these and work with none of
+    # this configured. Only POST /investigations/{id}/copilot needs an LLM
+    # provider; when anthropic_api_key is unset, app/copilot/llm_provider.py
+    # returns a provider whose `available` is False and the copilot endpoint
+    # answers with a clear "not configured" state instead of faking a reply.
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-sonnet-5"
+    anthropic_base_url: str = "https://api.anthropic.com"
+
+    # Generic, provider-agnostic aliases (LLM_PROVIDER / LLM_API_KEY /
+    # LLM_MODEL) -- app/copilot/llm_provider.py prefers these when set, and
+    # falls back to the ANTHROPIC_* settings above otherwise, so existing
+    # deployments/`.env` files keep working unchanged. "anthropic" is the
+    # only provider actually implemented today; this just avoids hardcoding
+    # the *configuration surface* to one vendor's env var names, matching
+    # the LLMProvider abstraction that already supports adding another.
+    llm_provider: str = ""
+    llm_api_key: str = ""
+    llm_model: str = ""
 
 
 @lru_cache

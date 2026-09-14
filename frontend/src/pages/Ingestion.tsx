@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api/client";
+import { useInvestigation } from "../store/investigation";
 
 const TEXT_SOURCES = [
   { value: "fir", label: "FIR / Police Report" },
@@ -14,6 +15,7 @@ const CSV_SOURCES = [
 ];
 
 function TextIngestForm() {
+  const { currentId } = useInvestigation();
   const [sourceType, setSourceType] = useState("fir");
   const [documentId, setDocumentId] = useState("");
   const [text, setText] = useState("");
@@ -27,6 +29,7 @@ function TextIngestForm() {
         source_type: sourceType,
         document_id: documentId || `${sourceType}-${Date.now()}`,
         text,
+        investigation_id: currentId,
       });
       setResult(res.data);
       setText("");
@@ -81,6 +84,7 @@ function TextIngestForm() {
 }
 
 function CsvIngestForm() {
+  const { currentId } = useInvestigation();
   const [sourceType, setSourceType] = useState("cdr");
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<any>(null);
@@ -94,6 +98,7 @@ function CsvIngestForm() {
       form.append("file", file);
       const res = await api.post(`/ingest/csv/${sourceType}`, form, {
         headers: { "Content-Type": "multipart/form-data" },
+        params: { investigation_id: currentId },
       });
       setResult(res.data);
       setFile(null);

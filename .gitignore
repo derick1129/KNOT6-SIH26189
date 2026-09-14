@@ -4,9 +4,19 @@ __pycache__/
 .pytest_cache/
 .env
 
+# KNOT6 Phase 1: local application database + evidence storage (zero-infra
+# SQLite path) and the test-session throwaway DB -- never committed; the
+# reviewable schema lives in backend/alembic/versions/ instead.
+backend/knot6_dev.db
+backend/tests/test_knot6.db
+backend/data/evidence/
+
 node_modules/
 dist/
 .vite/
 
 .DS_Store
 Thumbs.db
+
+# Agent scratch/working directory -- never project source.
+.scratch/

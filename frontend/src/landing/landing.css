@@ -1,0 +1,199 @@
+/* KNOT6 landing page -- scoped to this route only (imported by LandingPage.tsx). */
+
+.knot-callout {
+  background: rgba(7, 12, 22, 0.72);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  border-radius: 8px;
+  padding: 8px 12px;
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+  transform: translate(0, -50%);
+  font-family: "Space Grotesk", sans-serif;
+}
+.knot-callout-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6fe9ff;
+  letter-spacing: 0.02em;
+}
+.knot-callout-sub {
+  font-size: 10.5px;
+  color: #93a3c4;
+  margin-top: 2px;
+}
+
+.knot-evidence-card {
+  background: rgba(7, 12, 22, 0.85);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: 10px;
+  padding: 12px 14px;
+  backdrop-filter: blur(8px);
+  width: 220px;
+  transform: translate(0, -50%);
+  font-family: "IBM Plex Mono", monospace;
+}
+.knot-evidence-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: #93a3c4;
+  padding: 2px 0;
+}
+.knot-evidence-row span:last-child {
+  color: #d6e2f5;
+}
+.knot-evidence-verified {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  color: #34d399;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.knot-entity-tag {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  transform: translate(10px, -50%);
+  font-family: "IBM Plex Mono", monospace;
+  transition: opacity 0.4s ease;
+  white-space: nowrap;
+}
+.knot-entity-tag-id {
+  font-size: 9.5px;
+  letter-spacing: 0.03em;
+  color: #93a3c4;
+}
+.knot-entity-tag-meta {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: #46567d;
+}
+
+/* Persistent corner telemetry -- the restrained JARVIS-layer chrome. Fixed
+   to the viewport (not the 3D world), always present, always quiet: small
+   type, low contrast, no borders competing with the chapter typography. */
+.knot-telemetry {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
+  font-family: "IBM Plex Mono", monospace;
+}
+.knot-telemetry-block {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.knot-telemetry-tl {
+  top: clamp(72px, 9vh, 96px);
+  left: clamp(20px, 4vw, 56px);
+}
+.knot-telemetry-tr {
+  top: clamp(72px, 9vh, 96px);
+  right: clamp(20px, 4vw, 56px);
+  width: 132px;
+  align-items: flex-end;
+}
+.knot-telemetry-line {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: #46567d;
+}
+.knot-telemetry-strong {
+  color: #6b7ea6;
+}
+.knot-telemetry-dim {
+  color: #384a6e;
+}
+.knot-telemetry-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: #5b6a8f;
+  width: 100%;
+}
+.knot-telemetry-row span:last-child {
+  color: #8fa4cc;
+  font-variant-numeric: tabular-nums;
+}
+.knot-telemetry-bar {
+  width: 100%;
+  height: 2px;
+  background: rgba(93, 110, 148, 0.18);
+  margin: 2px 0 4px;
+}
+.knot-telemetry-bar-fill {
+  height: 100%;
+  background: #22d3ee;
+  opacity: 0.6;
+  transition: width 0.15s linear;
+}
+
+.knot-landing-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px clamp(20px, 4vw, 56px);
+  pointer-events: none;
+}
+.knot-landing-nav > * { pointer-events: auto; }
+
+.knot-progress-rail {
+  position: fixed;
+  right: clamp(16px, 3vw, 40px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.knot-progress-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #28345a;
+  transition: background 0.4s, transform 0.4s;
+}
+.knot-progress-dot.active {
+  background: #22d3ee;
+  transform: scale(1.6);
+}
+
+.knot-scroll-hint {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #5b6a8f;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.knot-scroll-hint .line {
+  width: 1px;
+  height: 28px;
+  background: linear-gradient(#22d3ee, transparent);
+  animation: knot-scroll-pulse 1.8s ease-in-out infinite;
+}
+@keyframes knot-scroll-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}

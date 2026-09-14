@@ -7,18 +7,77 @@ html, body, #root {
 }
 
 body {
-  @apply bg-ink text-slate-100;
-  font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  @apply bg-ink text-slate-100 font-body;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  @apply font-display;
+  letter-spacing: -0.01em;
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #0b1220; }
-::-webkit-scrollbar-thumb { background: #233252; border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #29352F; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #37453D; }
+
+::selection {
+  background: rgba(111, 169, 140, 0.25);
+}
 
 .card {
-  @apply bg-panel border border-border rounded-xl p-4 shadow-lg;
+  @apply bg-panel border border-border rounded-xl p-4;
+}
+
+.card-elevated {
+  @apply bg-panel2 border border-borderStrong rounded-xl p-4 shadow-soft;
 }
 
 .badge {
   @apply px-2 py-0.5 rounded-full text-xs font-semibold tracking-wide;
+}
+
+.knot-input {
+  @apply bg-panel2 border border-border rounded-lg px-3 py-2 text-sm outline-none transition-colors;
+}
+.knot-input:focus {
+  @apply border-accent;
+  box-shadow: 0 0 0 3px rgba(111, 169, 140, 0.15);
+}
+
+.knot-btn-primary {
+  @apply bg-accent text-ink font-semibold rounded-lg px-4 py-2 text-sm transition-all;
+}
+.knot-btn-primary:hover { filter: brightness(1.12); }
+.knot-btn-primary:disabled { @apply opacity-40; filter: none; }
+
+.knot-btn-ghost {
+  @apply text-xs px-3 py-1.5 rounded-lg border border-border text-slate-300 transition-colors;
+}
+.knot-btn-ghost:hover { @apply border-accent text-accent; }
+
+.eyebrow {
+  @apply text-[11px] uppercase tracking-[0.14em] text-muted font-medium;
+}
+
+.mono-tabular {
+  @apply font-mono;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle ambient grid backdrop, used sparingly behind hero/shell surfaces */
+.knot-grid-bg {
+  background-image:
+    linear-gradient(rgba(111, 169, 140, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(111, 169, 140, 0.07) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

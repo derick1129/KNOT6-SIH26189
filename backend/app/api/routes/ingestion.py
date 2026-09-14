@@ -14,9 +14,9 @@ import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
-from app.api.deps import get_store, require_role
+from app.api.deps import get_store, get_store_for, require_role
 from app.core.security import AuthUser
-from app.db.graph_store import GraphStore
+from app.db.graph_store import GraphStore, ScopedGraphStore
 from app.models.schemas import BulkIngestSummary, IngestResult, TextIngestRequest
 from app.services import audit
 from app.services.pipeline import ingest_structured, ingest_text_document
@@ -33,16 +33,21 @@ def ingest_text(payload: TextIngestRequest,
                  store: GraphStore = Depends(get_store)):
     if payload.source_type not in _TEXT_SOURCES:
         raise HTTPException(400, f"source_type must be one of {sorted(_TEXT_SOURCES)}")
-    result = ingest_text_document(store, payload.source_type, payload.document_id, payload.text, payload.metadata)
+    # investigation_id (if any) comes from the JSON body here, not a query
+    # param, so it's scoped by hand rather than via the get_store_for
+    # dependency (which resolves from path/query only).
+    scoped = ScopedGraphStore(store, payload.investigation_id) if payload.investigation_id else store
+    result = ingest_text_document(scoped, payload.source_type, payload.document_id, payload.text, payload.metadata)
     audit.log(actor=user.username, action=f"INGEST_TEXT:{payload.source_type}", target=payload.document_id,
-              details={"entities": result.entities_extracted, "relations": result.relations_extracted})
+              details={"entities": result.entities_extracted, "relations": result.relations_extracted},
+              investigation_id=payload.investigation_id)
     return result
 
 
 @router.post("/csv/{source_type}", response_model=BulkIngestSummary)
-async def ingest_csv(source_type: str, file: UploadFile = File(...),
+async def ingest_csv(source_type: str, file: UploadFile = File(...), investigation_id: str | None = None,
                       user: AuthUser = Depends(require_role("investigator", "analyst", "admin")),
-                      store: GraphStore = Depends(get_store)):
+                      store: GraphStore = Depends(get_store_for)):
     if source_type not in _STRUCTURED_SOURCES:
         raise HTTPException(400, f"source_type must be one of {sorted(_STRUCTURED_SOURCES)}")
     raw = (await file.read()).decode("utf-8-sig")
@@ -54,14 +59,14 @@ async def ingest_csv(source_type: str, file: UploadFile = File(...),
     document_id = f"{source_type}-{file.filename}-{uuid.uuid4().hex[:6]}"
     summary = ingest_structured(store, source_type, records, document_id)
     audit.log(actor=user.username, action=f"INGEST_CSV:{source_type}", target=document_id,
-              details=summary.model_dump())
+              details=summary.model_dump(), investigation_id=investigation_id)
     return summary
 
 
 @router.post("/social-media", response_model=BulkIngestSummary)
-async def ingest_social_media(file: UploadFile = File(...),
+async def ingest_social_media(file: UploadFile = File(...), investigation_id: str | None = None,
                                user: AuthUser = Depends(require_role("investigator", "analyst", "admin")),
-                               store: GraphStore = Depends(get_store)):
+                               store: GraphStore = Depends(get_store_for)):
     """
     JSON array of {author, text, timestamp, platform}. Each post is run
     through the same NLP pipeline as an FIR; the author is additionally

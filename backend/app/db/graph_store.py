@@ -412,6 +412,136 @@ class Neo4jGraphStore(GraphStore):
             session.run("MATCH (n:Entity) DETACH DELETE n")
 
 
+class ScopedGraphStore(GraphStore):
+    """
+    KNOT6 Phase 1: investigation isolation, implemented as a decorator over
+    any other GraphStore rather than a change to GraphStore/NetworkXGraphStore
+    /Neo4jGraphStore themselves.
+
+    Every node ID this wrapper writes is transparently namespaced with the
+    owning investigation ("inv_<investigation_id>::<logical_id>") before
+    being handed to the wrapped store, and every ID coming back out is
+    stripped back to its logical (unprefixed) form -- so callers on either
+    side of this class see exactly the plain entity IDs they always have.
+    Concretely, this means `app/graph/graph_builder.py`,
+    `app/resolution/entity_resolution.py`, `app/analytics/*.py` and
+    `app/services/pipeline.py` needed **zero changes** for Phase 1: they are
+    simply handed a `ScopedGraphStore(get_graph_store(), investigation_id)`
+    instead of the raw store at the API layer (see `app/api/deps.py`), and
+    every existing analytics/resolution/ingestion function keeps working
+    unmodified because it never sees a namespaced ID.
+
+    Because nothing ever creates an edge between two different investigations'
+    namespaced IDs, `neighbors()`/path-finding naturally never traverses out
+    of scope -- isolation falls out of the ID namespacing itself, not extra
+    filtering logic layered on top of every read.
+
+    `case_id` is intentionally *not* part of the graph-level scope in Phase 1
+    (see docs/KNOT6_ARCHITECTURE.md): the isolation boundary the PS and
+    Phase 1 both care about is the investigation, and entities legitimately
+    recur across cases within one investigation (the same phone number
+    showing up in two related cases of the same investigation is a feature,
+    not a bug, per the original architecture doc's §9.2 "cross-case entity
+    linking" note). Evidence rows still carry their own `case_id` in
+    PostgreSQL for case-level bookkeeping.
+    """
+
+    def __init__(self, inner: GraphStore, investigation_id: str) -> None:
+        if not investigation_id:
+            raise ValueError("ScopedGraphStore requires a non-empty investigation_id.")
+        self._inner = inner
+        self.investigation_id = investigation_id
+        self._prefix = f"inv_{investigation_id}::"
+
+    # -- id (un)namespacing --------------------------------------------
+    def _scope(self, node_id: str) -> str:
+        return f"{self._prefix}{node_id}"
+
+    def _unscope(self, physical_id: str) -> str:
+        return physical_id[len(self._prefix):] if physical_id.startswith(self._prefix) else physical_id
+
+    def _in_scope(self, physical_id: str) -> bool:
+        return physical_id.startswith(self._prefix)
+
+    def _unscope_node(self, node: Optional[Node]) -> Optional[Node]:
+        if node is None:
+            return None
+        node.id = self._unscope(node.id)
+        node.attributes.setdefault("_investigation_id", self.investigation_id)
+        return node
+
+    def _unscope_edge(self, edge: Edge) -> Edge:
+        edge.source = self._unscope(edge.source)
+        edge.target = self._unscope(edge.target)
+        return edge
+
+    # -- writes -----------------------------------------------------------
+    def upsert_node(self, node_id: str, type: str, label: str, attributes: dict,
+                     source_document: str | None = None) -> Node:
+        node = self._inner.upsert_node(self._scope(node_id), type, label, attributes, source_document)
+        return self._unscope_node(node)  # type: ignore[return-value]
+
+    def upsert_edge(self, source: str, target: str, type: str, attributes: dict | None = None,
+                     weight: float = 1.0, evidence: str | None = None) -> Edge:
+        edge = self._inner.upsert_edge(self._scope(source), self._scope(target), type,
+                                        attributes=attributes, weight=weight, evidence=evidence)
+        return self._unscope_edge(edge)
+
+    def record_edge_event(self, source: str, target: str, type: str, event: dict,
+                           evidence: str | None = None) -> Edge:
+        edge = self._inner.record_edge_event(self._scope(source), self._scope(target), type, event, evidence)
+        return self._unscope_edge(edge)
+
+    # -- reads --------------------------------------------------------------
+    def get_node(self, node_id: str) -> Optional[Node]:
+        return self._unscope_node(self._inner.get_node(self._scope(node_id)))
+
+    def all_nodes(self) -> list[Node]:
+        return [self._unscope_node(n) for n in self._inner.all_nodes() if self._in_scope(n.id)]  # type: ignore[misc]
+
+    def all_edges(self) -> list[Edge]:
+        return [self._unscope_edge(e) for e in self._inner.all_edges()
+                if self._in_scope(e.source) and self._in_scope(e.target)]
+
+    def neighbors(self, node_id: str, hops: int = 1) -> tuple[list[Node], list[Edge]]:
+        nodes, edges = self._inner.neighbors(self._scope(node_id), hops=hops)
+        return ([self._unscope_node(n) for n in nodes],  # type: ignore[misc]
+                [self._unscope_edge(e) for e in edges])
+
+    def search_nodes(self, query: str, type: str | None = None, limit: int = 25) -> list[Node]:
+        # Over-fetch from the (potentially multi-investigation) inner store,
+        # then filter to this investigation's namespace and trim. Fine at
+        # prototype scale; a production Neo4j build would instead filter by
+        # an indexed investigation_id property server-side.
+        raw = self._inner.search_nodes(query, type=type, limit=max(limit * 10, 200))
+        matched = [self._unscope_node(n) for n in raw if self._in_scope(n.id)]
+        return matched[:limit]  # type: ignore[return-value]
+
+    def merge_nodes(self, keep_id: str, merge_id: str) -> None:
+        self._inner.merge_nodes(self._scope(keep_id), self._scope(merge_id))
+
+    def to_networkx(self) -> nx.MultiDiGraph:
+        g = self._inner.to_networkx()
+        sub = nx.MultiDiGraph()
+        for n, d in g.nodes(data=True):
+            if self._in_scope(n):
+                sub.add_node(self._unscope(n), **d)
+        for u, v, k, d in g.edges(keys=True, data=True):
+            if self._in_scope(u) and self._in_scope(v):
+                d = dict(d)
+                d["_target"] = self._unscope(d.get("_target", v))
+                sub.add_edge(self._unscope(u), self._unscope(v), key=k, **d)
+        return sub
+
+    def clear(self) -> None:
+        raise NotImplementedError(
+            "ScopedGraphStore.clear() is intentionally unsupported in Phase 1: clearing only "
+            "this investigation's nodes safely requires the inner store to support scoped "
+            "deletion, which none of Phase 1's ingestion/tests need. Clear the underlying "
+            "GraphStore directly (and deliberately) if a full reset is really what's needed."
+        )
+
+
 @lru_cache
 def get_graph_store() -> GraphStore:
     settings = get_settings()

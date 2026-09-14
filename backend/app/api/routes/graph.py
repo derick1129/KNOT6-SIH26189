@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.api.deps import get_store, require_role
+from app.api.deps import get_store_for, require_role
 from app.core.security import AuthUser
 from app.db.graph_store import GraphStore
 from app.models.schemas import EntityOut, GraphOut, PathResult, RelationOut
@@ -12,8 +12,8 @@ router = APIRouter(prefix="/graph", tags=["graph"])
 
 
 @router.get("", response_model=GraphOut)
-def get_full_graph(user: AuthUser = Depends(require_role("investigator", "analyst", "admin")),
-                    store: GraphStore = Depends(get_store)):
+def get_full_graph(user: AuthUser = Depends(require_role("investigator", "analyst", "admin", "viewer")),
+                    store: GraphStore = Depends(get_store_for)):
     nodes = [EntityOut(id=n.id, type=n.type, label=n.label, attributes=n.attributes,
                         source_count=len(n.source_documents)) for n in store.all_nodes()]
     edges = [RelationOut(id=e.id, source=e.source, target=e.target, type=e.type,
@@ -24,8 +24,8 @@ def get_full_graph(user: AuthUser = Depends(require_role("investigator", "analys
 
 @router.get("/neighborhood/{entity_id}", response_model=GraphOut)
 def get_neighborhood(entity_id: str, hops: int = 1,
-                      user: AuthUser = Depends(require_role("investigator", "analyst", "admin")),
-                      store: GraphStore = Depends(get_store)):
+                      user: AuthUser = Depends(require_role("investigator", "analyst", "admin", "viewer")),
+                      store: GraphStore = Depends(get_store_for)):
     if not store.get_node(entity_id):
         raise HTTPException(404, "Entity not found.")
     nodes, edges = store.neighbors(entity_id, hops=hops)
@@ -39,6 +39,6 @@ def get_neighborhood(entity_id: str, hops: int = 1,
 
 @router.get("/path", response_model=PathResult)
 def get_path(source: str, target: str, max_hops: int = 6,
-             user: AuthUser = Depends(require_role("investigator", "analyst", "admin")),
-             store: GraphStore = Depends(get_store)):
+             user: AuthUser = Depends(require_role("investigator", "analyst", "admin", "viewer")),
+             store: GraphStore = Depends(get_store_for)):
     return find_path(store, source, target, max_hops=max_hops)
