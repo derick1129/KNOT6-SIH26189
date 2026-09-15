@@ -171,6 +171,7 @@ class InvestigationOut(BaseModel):
     name: str
     description: str
     status: str
+    is_demo_seed: bool = False
     created_by: str
     created_at: datetime
     updated_at: datetime

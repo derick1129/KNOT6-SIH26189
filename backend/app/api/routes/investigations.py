@@ -37,8 +37,8 @@ def _to_out(inv: Investigation, db: Session) -> InvestigationOut:
     case_count = db.query(Case).filter(Case.investigation_id == inv.id).count()
     return InvestigationOut(
         id=inv.id, name=inv.name, description=inv.description, status=inv.status,
-        created_by=inv.created_by, created_at=inv.created_at, updated_at=inv.updated_at,
-        case_count=case_count,
+        is_demo_seed=inv.is_demo_seed, created_by=inv.created_by,
+        created_at=inv.created_at, updated_at=inv.updated_at, case_count=case_count,
     )
 
 
@@ -175,3 +175,30 @@ def archive_investigation(investigation_id: str,
     audit.log(actor=user.username, action="ARCHIVE_INVESTIGATION", target=inv.id,
               investigation_id=inv.id)
     return _to_out(inv, db)
+
+
+@router.post("/{investigation_id}/reseed-demo")
+def reseed_demo_investigation_route(investigation_id: str,
+                                     user: AuthUser = Depends(require_role("admin")),
+                                     db: Session = Depends(get_db)):
+    """
+    Restore the bundled demo investigation to its canonical, seed_demo.py-
+    generated graph -- see app/services/graph_recovery.py. Admin-only, and
+    refuses outright on anything not flagged `is_demo_seed` (a real
+    investigation has no canonical source to restore from). This is the
+    proper fix for the demo dataset having been polluted by a real upload
+    before `ensure_not_demo_protected` existed: restore from source, don't
+    hand-edit the graph.
+    """
+    inv = db.get(Investigation, investigation_id)
+    if not inv:
+        raise HTTPException(404, "Investigation not found.")
+    if not inv.is_demo_seed:
+        raise HTTPException(400, f"'{inv.name}' is not the protected demo investigation; nothing to reseed.")
+
+    from app.services.graph_recovery import reseed_demo_investigation
+    result = reseed_demo_investigation(inv, db)
+    audit.log(actor=user.username, action="RESEED_DEMO_INVESTIGATION", target=inv.id,
+              details={k: v for k, v in result.items() if k != "seed_summary"},
+              investigation_id=inv.id)
+    return result

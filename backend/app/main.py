@@ -82,10 +82,19 @@ def _seed_on_startup() -> None:
                     "immediately explorable without uploading files first."
                 ),
                 created_by="admin",
+                is_demo_seed=True,
             )
             db.add(investigation)
             db.commit()
             db.refresh(investigation)
+        elif not investigation.is_demo_seed:
+            # Backfill for a database created before `is_demo_seed` existed
+            # (see the a7f3c9e21b04 migration's equivalent backfill for the
+            # Postgres/Docker path) -- the zero-infra SQLite path only runs
+            # `create_all`, which never adds columns to an existing table's
+            # data, so this is the corresponding fix-up for it.
+            investigation.is_demo_seed = True
+            db.commit()
 
         case = db.query(Case).filter(Case.case_number == DEMO_CASE_NUMBER).first()
         if case is None:
@@ -110,6 +119,29 @@ def _seed_on_startup() -> None:
             logger.info("Seeded demo dataset into investigation %s: %s", investigation.id, summary)
         except Exception:
             logger.exception("Demo data seeding failed; starting with an empty graph.")
+    finally:
+        db.close()
+
+
+@app.on_event("startup")
+def _rebuild_investigation_graphs_on_startup() -> None:
+    """
+    Graph-durability fix (see app/services/graph_recovery.py's docstring):
+    the GraphStore never survives a process restart on its own, unlike the
+    PostgreSQL-backed Investigation/Case/Evidence rows sitting right next to
+    it. Runs after `_seed_on_startup` so it only ever looks at *non-demo*
+    investigations -- the demo dataset already has its own from-canonical-
+    source restore path and must never have Evidence rows once
+    `ensure_not_demo_protected` is in place.
+    """
+    db = SessionLocal()
+    try:
+        from app.services.graph_recovery import rebuild_missing_investigation_graphs
+        rebuilt = rebuild_missing_investigation_graphs(db)
+        if rebuilt:
+            logger.info("Rebuilt %d investigation graph(s) from persisted evidence on startup.", len(rebuilt))
+    except Exception:
+        logger.exception("Investigation graph rebuild failed; some investigations may show an empty graph.")
     finally:
         db.close()
 

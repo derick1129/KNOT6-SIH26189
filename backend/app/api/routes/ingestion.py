@@ -13,12 +13,15 @@ import json
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy.orm import Session
 
-from app.api.deps import get_store, get_store_for, require_role
+from app.api.deps import get_db, get_store, get_store_for, require_role
 from app.core.security import AuthUser
 from app.db.graph_store import GraphStore, ScopedGraphStore
+from app.db.models import Investigation
 from app.models.schemas import BulkIngestSummary, IngestResult, TextIngestRequest
 from app.services import audit
+from app.services.evidence_processing import ensure_not_demo_protected
 from app.services.pipeline import ingest_structured, ingest_text_document
 
 router = APIRouter(prefix="/ingest", tags=["ingestion"])
@@ -27,12 +30,24 @@ _TEXT_SOURCES = {"fir", "surveillance", "social_media", "intel_report"}
 _STRUCTURED_SOURCES = {"cdr", "financial", "criminal_history"}
 
 
+def _guard_demo_investigation(investigation_id: str | None, db: Session) -> None:
+    """Shared by every legacy `/ingest/*` route: see
+    `app/services/evidence_processing.py::ensure_not_demo_protected`."""
+    if not investigation_id:
+        return
+    investigation = db.get(Investigation, investigation_id)
+    if investigation:
+        ensure_not_demo_protected(investigation)
+
+
 @router.post("/text", response_model=IngestResult)
 def ingest_text(payload: TextIngestRequest,
                  user: AuthUser = Depends(require_role("investigator", "analyst", "admin")),
-                 store: GraphStore = Depends(get_store)):
+                 store: GraphStore = Depends(get_store),
+                 db: Session = Depends(get_db)):
     if payload.source_type not in _TEXT_SOURCES:
         raise HTTPException(400, f"source_type must be one of {sorted(_TEXT_SOURCES)}")
+    _guard_demo_investigation(payload.investigation_id, db)
     # investigation_id (if any) comes from the JSON body here, not a query
     # param, so it's scoped by hand rather than via the get_store_for
     # dependency (which resolves from path/query only).
@@ -47,9 +62,11 @@ def ingest_text(payload: TextIngestRequest,
 @router.post("/csv/{source_type}", response_model=BulkIngestSummary)
 async def ingest_csv(source_type: str, file: UploadFile = File(...), investigation_id: str | None = None,
                       user: AuthUser = Depends(require_role("investigator", "analyst", "admin")),
-                      store: GraphStore = Depends(get_store_for)):
+                      store: GraphStore = Depends(get_store_for),
+                      db: Session = Depends(get_db)):
     if source_type not in _STRUCTURED_SOURCES:
         raise HTTPException(400, f"source_type must be one of {sorted(_STRUCTURED_SOURCES)}")
+    _guard_demo_investigation(investigation_id, db)
     raw = (await file.read()).decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(raw))
     records = list(reader)
@@ -66,7 +83,8 @@ async def ingest_csv(source_type: str, file: UploadFile = File(...), investigati
 @router.post("/social-media", response_model=BulkIngestSummary)
 async def ingest_social_media(file: UploadFile = File(...), investigation_id: str | None = None,
                                user: AuthUser = Depends(require_role("investigator", "analyst", "admin")),
-                               store: GraphStore = Depends(get_store_for)):
+                               store: GraphStore = Depends(get_store_for),
+                               db: Session = Depends(get_db)):
     """
     JSON array of {author, text, timestamp, platform}. Each post is run
     through the same NLP pipeline as an FIR; the author is additionally
@@ -74,6 +92,7 @@ async def ingest_social_media(file: UploadFile = File(...), investigation_id: st
     "who talked about whom" stays visible even when the author itself
     wasn't named inside the post text.
     """
+    _guard_demo_investigation(investigation_id, db)
     raw = json.loads((await file.read()).decode("utf-8-sig"))
     if not isinstance(raw, list):
         raise HTTPException(400, "Expected a JSON array of posts.")

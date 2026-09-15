@@ -40,6 +40,32 @@ Sources: `criminal_history.csv`, `cdr_records.csv`, `financial_transactions.csv`
 3. **Path Finder** — connect "Farhan Ali" to "Vikram Rathore" and show the 3-hop chain through Ramesh
    Kumar even though the two never appear together in any single record.
 4. **Ingest Data** — paste a new one-off sentence (e.g. `"Zubair Khan met Farhan Ali near Chandan Nagar
-   Indore and handed him a package."`) and show it landing in the graph live.
+   Indore and handed him a package."`) and show it landing in the graph live. Do this inside a fresh
+   investigation (`+ New Investigation`), not Operation Nexus itself — see "Protecting the demo dataset"
+   below for why, and how to demo the isolation this gives you for free.
 5. **Anomalies on the Dashboard** — walk through the burst-calling and circular-transaction flags and
    explain the plain-language reasoning behind each.
+
+## Protecting the demo dataset
+
+Operation Nexus (this dataset) is the one investigation every judge/reviewer sees before uploading
+anything of their own, so its entity/relationship/person counts (currently 59/102/17 — see
+`tests/test_investigation_isolation_and_demo_protection.py::test_demo_investigation_is_flagged_and_matches_documented_baseline`,
+which pins these numbers) need to stay exactly reproducible from this directory, not drift every time
+someone tries "Add Intelligence" against it.
+
+- **`Investigation.is_demo_seed`** (`app/db/models.py`) is `true` only for this one investigation,
+  set when `app/main.py`'s startup hook creates (or finds) it.
+- **`ensure_not_demo_protected`** (`app/services/evidence_processing.py`) is checked by every ingestion
+  entry point — the per-case evidence upload route and all three legacy `/ingest/*` routes — and refuses
+  with `409` if the target investigation is demo-flagged. Uploading into *any other* investigation is
+  completely unaffected; this is specifically about never letting a real upload merge into this one.
+- **Restoring from source**: if this investigation is ever found to have drifted (e.g. it was polluted
+  before this guard existed), `POST /api/investigations/{id}/reseed-demo` (admin-only) wipes exactly this
+  investigation's graph — nothing else, see `ScopedGraphStore.clear()` — deletes any stray `Evidence` rows
+  it has accumulated, and re-runs `app/services/seed_demo.py::seed()` against it from this directory. That
+  is the canonical source; restoring by hand-editing the graph is never the right move.
+- Real casework belongs in its own investigation (`+ New Investigation`) — every investigation's graph,
+  evidence, timeline, financial/geo intelligence and Copilot memory are independently scoped by
+  investigation id (`ScopedGraphStore`, see `docs/KNOT6_ARCHITECTURE.md`), so a second investigation never
+  needs to touch this one.

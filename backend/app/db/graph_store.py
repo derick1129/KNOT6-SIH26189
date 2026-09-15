@@ -103,6 +103,17 @@ class GraphStore(ABC):
         ...
 
     @abstractmethod
+    def remove_nodes(self, node_ids: list[str]) -> None:
+        """
+        Delete exactly these nodes (and every edge touching them), nothing
+        else. This is the primitive `ScopedGraphStore.clear()` builds on to
+        support a safe, targeted, investigation-scoped reset -- see that
+        class's docstring. `node_ids` are physical (already-namespaced) ids
+        as returned by `all_nodes()`/`all_edges()` on this store.
+        """
+        ...
+
+    @abstractmethod
     def clear(self) -> None: ...
 
 
@@ -237,6 +248,9 @@ class NetworkXGraphStore(GraphStore):
 
     def to_networkx(self) -> nx.MultiDiGraph:
         return self._g
+
+    def remove_nodes(self, node_ids: list[str]) -> None:
+        self._g.remove_nodes_from(node_ids)
 
     def clear(self) -> None:
         self._g = nx.MultiDiGraph()
@@ -407,6 +421,12 @@ class Neo4jGraphStore(GraphStore):
                        weight=e.weight, evidence=e.evidence, _target=e.target)
         return g
 
+    def remove_nodes(self, node_ids: list[str]) -> None:
+        if not node_ids:
+            return
+        with self._driver.session() as session:
+            session.run("MATCH (e:Entity) WHERE e.id IN $ids DETACH DELETE e", ids=node_ids)
+
     def clear(self) -> None:
         with self._driver.session() as session:
             session.run("MATCH (n:Entity) DETACH DELETE n")
@@ -520,6 +540,9 @@ class ScopedGraphStore(GraphStore):
     def merge_nodes(self, keep_id: str, merge_id: str) -> None:
         self._inner.merge_nodes(self._scope(keep_id), self._scope(merge_id))
 
+    def remove_nodes(self, node_ids: list[str]) -> None:
+        self._inner.remove_nodes([self._scope(n) for n in node_ids])
+
     def to_networkx(self) -> nx.MultiDiGraph:
         g = self._inner.to_networkx()
         sub = nx.MultiDiGraph()
@@ -534,12 +557,20 @@ class ScopedGraphStore(GraphStore):
         return sub
 
     def clear(self) -> None:
-        raise NotImplementedError(
-            "ScopedGraphStore.clear() is intentionally unsupported in Phase 1: clearing only "
-            "this investigation's nodes safely requires the inner store to support scoped "
-            "deletion, which none of Phase 1's ingestion/tests need. Clear the underlying "
-            "GraphStore directly (and deliberately) if a full reset is really what's needed."
-        )
+        """
+        Delete every node (and touching edge) namespaced to this investigation
+        only -- every other investigation sharing the same inner store is
+        untouched. Built on `remove_nodes`, which each GraphStore backend
+        implements as a real, targeted deletion (see that method's
+        docstring), so this is safe on a live, multi-investigation store --
+        unlike the pre-Phase-1 version of this method, which refused to run
+        at all rather than risk clearing more than one investigation's data.
+        Used by the demo-reseed path (`app/services/graph_recovery.py`) to
+        restore Operation Nexus from its canonical source without disturbing
+        any other investigation's graph.
+        """
+        physical_ids = [n.id for n in self._inner.all_nodes() if self._in_scope(n.id)]
+        self._inner.remove_nodes(physical_ids)
 
 
 @lru_cache

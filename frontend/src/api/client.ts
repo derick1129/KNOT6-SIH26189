@@ -108,6 +108,10 @@ export interface Investigation {
   name: string;
   description: string;
   status: "ACTIVE" | "ARCHIVED" | "CLOSED";
+  // True only for the bundled "Operation Nexus" demo investigation --
+  // new intelligence uploads into it are refused server-side (409), see
+  // backend/app/services/evidence_processing.py::ensure_not_demo_protected.
+  is_demo_seed: boolean;
   created_by: string;
   created_at: string;
   updated_at: string;

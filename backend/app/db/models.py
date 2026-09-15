@@ -24,7 +24,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -67,6 +67,14 @@ class Investigation(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE")  # ACTIVE|ARCHIVED|CLOSED
+    # Data-integrity fix (see docs/DEMO_DATA.md "Protecting the demo dataset"):
+    # true only for the single auto-seeded "Operation Nexus" investigation
+    # main.py creates on startup. New intelligence uploads are refused
+    # against a demo-flagged investigation (app/services/evidence_processing.py
+    # / app/api/routes/ingestion.py) so the bundled walkthrough dataset can
+    # never be silently grown/polluted by a real upload again -- real work
+    # belongs in its own (non-flagged) investigation instead.
+    is_demo_seed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     created_by: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

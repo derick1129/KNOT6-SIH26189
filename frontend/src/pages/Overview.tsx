@@ -105,15 +105,34 @@ export default function Overview() {
       {/* Investigation identity */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <div className="eyebrow mb-1">{current?.status ?? "ACTIVE"} INVESTIGATION</div>
+          <div className="eyebrow mb-1 flex items-center gap-2">
+            <span>{current?.status ?? "ACTIVE"} INVESTIGATION</span>
+            {current?.is_demo_seed && (
+              <span
+                className="text-[10px] normal-case tracking-normal bg-accent/15 text-accent rounded-full px-2 py-0.5"
+                title="Bundled demo dataset -- new intelligence uploads are refused so it always matches docs/DEMO_DATA.md. Create a new investigation for real casework."
+              >
+                Protected demo dataset
+              </span>
+            )}
+          </div>
           <h1 className="text-3xl md:text-4xl font-display font-semibold text-slate-50">
             {current?.name ?? "Investigation Overview"}
           </h1>
         </div>
-        {role && CAN_UPLOAD_ROLES.has(role) && (
+        {role && CAN_UPLOAD_ROLES.has(role) && !current?.is_demo_seed && (
           <button onClick={() => setShowUpload(true)} className="knot-btn-primary shrink-0">
             + Add Intelligence
           </button>
+        )}
+        {role && CAN_UPLOAD_ROLES.has(role) && current?.is_demo_seed && (
+          <Link
+            to="/investigations"
+            className="knot-btn-ghost shrink-0"
+            title="Operation Nexus is the protected demo dataset -- create a new investigation to add real intelligence."
+          >
+            + New Investigation for Intelligence
+          </Link>
         )}
       </div>
       <div>
