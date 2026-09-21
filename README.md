@@ -389,9 +389,11 @@ flowchart TD
         VEC[Neo4j Vector Index]
 
         N2 --> GDS
-        GDS -->|Native Cypher GDS Calls\ngds.pageRank.stream\ngds.louvain.stream| RES2[Sub-Second Massive Scale Results]
-        N2 --> HYPER -->|Temporal Cypher Queries\nMATCH (a)-[:CALL]->(e:Event)-[:TARGET]->(b)| SEQ[Complex Sequence Analysis]
-        N2 --> VEC -->|Hybrid Vector + Graph Search| RAG[Graph RAG Case Intelligence]
+        GDS -->|"Native Cypher GDS Calls<br/>gds.pageRank.stream<br/>gds.louvain.stream"| RES2[Sub-Second Massive Scale Results]
+        N2 --> HYPER
+        HYPER -->|"Temporal Cypher Queries<br/>MATCH (a)-[:CALL]->(e:Event)-[:TARGET]->(b)"| SEQ[Complex Sequence Analysis]
+        N2 --> VEC
+        VEC -->|"Hybrid Vector + Graph Search"| RAG[Graph RAG Case Intelligence]
     end
 ```
 
